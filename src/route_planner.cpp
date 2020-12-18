@@ -78,23 +78,17 @@ bool CompareFValue(RouteModel::Node* const node_x, RouteModel::Node* const node_
 
 
 RouteModel::Node *RoutePlanner::NextNode() {
+    
+    // Sort the open list according to the nodes f-value = g-value + h-value
+    std::sort(open_list.begin(), open_list.end(), CompareFValue);
 
-    // Fetch next node only when the ope list still has nodes
-    if (!open_list.empty()){
-        
-        // Sort the open list according to the nodes f-value = g-value + h-value
-        std::sort(open_list.begin(), open_list.end(), CompareFValue);
+    // Create pointer to the lowest f-value node
+    RouteModel::Node* next_node = open_list.front();
 
-        // Create pointer to the lowest f-value node
-        RouteModel::Node* next_node = open_list.front();
+    // Erase the next node from the vector (lowest f-value)
+    open_list.erase(open_list.begin());
 
-        // Erase the next node from the vector (lowest f-value)
-        open_list.erase(open_list.begin());
-
-        return next_node;
-    } else {
-        return nullptr;
-    }
+    return next_node;
 }
 
 
@@ -115,12 +109,11 @@ std::vector<RouteModel::Node> RoutePlanner::ConstructFinalPath(RouteModel::Node 
     // Start by pushing the end node to the path 
     path_found.push_back(*current_node);
 
+    // Set the total distance to the g-value of the end node
+    distance = current_node->g_value;
+
     // Iterate through all the parents till reaching the start node
     do {
-        std::cout << current_node->x << ", " << current_node->y << "\n";
-
-        // Accumulate the distances between the end node and the start node on the found path
-        distance += current_node->distance(*current_node->parent);
 
         // Set the next node in path to the current node's parent
         current_node = current_node->parent;
@@ -150,10 +143,11 @@ void RoutePlanner::AStarSearch() {
     // Set the current node to the start node
     current_node = start_node;
 
-    // Iterate on all the nodes till reaching the end node or gets blocked
-    while(current_node->x != end_node->x && current_node != nullptr) {
+    // Mark the start node as visited
+    current_node->visited = true;
 
-        std::cout << "Next Node: " << current_node->x << ", " << current_node->y << "\n";
+    // Iterate on all the nodes till reaching the end node or gets blocked
+    do {
 
         // Populate the neighbors of the current node
         AddNeighbors(current_node);
@@ -161,17 +155,18 @@ void RoutePlanner::AStarSearch() {
         // Get the next potential node in the path and set it as the current node
         current_node = NextNode();
 
-    }
+        // Check if the end node reached
+        if (current_node->x == end_node->x && current_node->y == end_node->y){
+            
+            // Path found and shall be constructed back
+            m_Model.path = ConstructFinalPath(current_node);
+            std::cout << "Path Size: " << m_Model.path.size() << "\n";
+            return;
+        }
 
-    // Check if the end node reached or get blocked
-    if (current_node == nullptr){
-        std::cout << "No Path Found! \n";
-    } else {
+    } while(!open_list.empty());
 
-        // Path found and shall be constructed back
-        m_Model.path = ConstructFinalPath(current_node);
 
-        std::cout << m_Model.path.size() << "\n";
-    }
-
+    std::cout << "No Path Found! \n";
+    return;
 }
